@@ -48,10 +48,20 @@ def main(image_path):
     # Estrai e organizza il testo
     sorted_rows = extract_and_organize_text(processed_image)
 
-    # Stampa le righe estratte
+    # Crea un array per memorizzare i risultati
+    result_array = []
+
+    # Stampa le righe estratte con un "-" alla fine e aggiungi all'array
     print("Contenuto della tabella riconosciuto:")
     for row in sorted_rows:
+        # formatted_row = row + " -"
         print(row)
+        result_array.append(row)
+        result_array = [elemento.replace(" ", "") for elemento in result_array] # Rimuovi gli spazi vuoti tra le lettere
+
+    # Puoi ora utilizzare result_array come desideri
+    print("\nArray dei risultati:", result_array)
+    # print("\n Primo elemento seconda lettera: ", result_array[0][1]) # esempio per stampare il secondo carattere della prima riga
 
 if __name__ == "__main__":
     # Specifica il percorso dell'immagine da elaborare
