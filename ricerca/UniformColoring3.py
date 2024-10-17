@@ -106,17 +106,42 @@ def print_grid(grid):
 
 def calculate_total_cost(grid, color, start_position, color_costs):
     """
-    Calcola il costo totale per uniformare tutte le celle della griglia a un colore specifico.
+    Calcola il costo totale per uniformare tutte le celle della griglia a un colore specifico,
+    utilizzando UCS per espandere i colori confinanti solo dopo aver calcolato il costo.
     """
-    total_cost = 0
+    print("Calcolo del costo totale per colorare la griglia in", color)
     rows, cols = len(grid), len(grid[0])
+    visited = set()  # Traccia delle celle già visitate
+    total_cost = 0
 
-    for x in range(rows):
-        for y in range(cols):
-            if (x, y) != start_position: 
-                current_color = grid[x][y] # Colore corrente della cella
-                if current_color != color and current_color in color_costs: # Se la cella non è già colorata con il colore obiettivo
-                    total_cost += color_costs[color] # Aggiungi il costo di colorazione per la cella
+    # Coda con priorità per UCS, inizia con la posizione di partenza
+    frontier = PriorityQueue()
+    frontier.put((0, start_position))
+
+    while not frontier.empty():
+        cost, (x, y) = frontier.get()
+
+        # Salta se la cella è già stata visitata
+        if (x, y) in visited:
+            continue
+
+        # Segna la cella come visitata
+        visited.add((x, y))
+
+        # Calcola il costo solo se il colore è diverso
+        current_color = grid[x][y]
+        if current_color != color:
+            step_cost = color_costs[color]
+            total_cost += step_cost  # Aggiungi il costo per colorare la cella
+
+        # Espandi verso i vicini solo dopo aver calcolato il costo
+        for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1)]:  # Up, Down, Left, Right
+            nx, ny = x + dx, y + dy
+            if 0 <= nx < rows and 0 <= ny < cols and (nx, ny) not in visited:
+                # Inserisci il vicino nella coda con il costo accumulato
+                frontier.put((cost + 1, (nx, ny)))  # Ogni movimento ha un costo di 1
+            
+
 
     return total_cost
 
@@ -124,8 +149,8 @@ def find_optimal_goal_color(grid, start_position, color_costs):
     """
     Trova il colore obiettivo più conveniente per uniformare la griglia.
     """
-    colors = color_costs.keys()
-    costs = {color: calculate_total_cost(grid, color, start_position, color_costs) for color in colors}
+    colors = color_costs.keys() # Lista dei colori disponibili
+    costs = {color: calculate_total_cost(grid, color, start_position, color_costs) for color in colors} # Calcola i costi per ogni colore
     optimal_color = min(costs, key=costs.get)
     print("Costi per ogni colore:", costs)
     print("Colore obiettivo ottimale:", optimal_color)
@@ -160,12 +185,14 @@ def uniform_cost_search(problem):
                         frontier.queue[i] = (new_cost, child, new_path)
                         break
                 frontier.queue = sorted(frontier.queue)
+            
 
     return None
 
 # Esempio di utilizzo
 if __name__ == '__main__':
-    initial_grid = ['GTG', 'GGG', 'BGG', 'GGG']
+
+    initial_grid = ['GTG', 'BGB', 'BBB', 'BBB']
     
     try:
         start_position = find_starting_position(initial_grid)  # Trova la posizione di 'T'
