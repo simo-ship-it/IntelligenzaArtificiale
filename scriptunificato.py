@@ -65,7 +65,7 @@ def main(image_path):
 
 if __name__ == "__main__":
     # Specifica il percorso dell'immagine da elaborare
-    image_path = 'bordi.png'  # Sostituisci con il percorso della tua immagine
+    image_path = 'test_image2.png'  # Sostituisci con il percorso della tua immagine
 
     # Esegui il programma
     main(image_path)
