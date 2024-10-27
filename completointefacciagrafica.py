@@ -8,6 +8,7 @@ import heapq
 import tkinter as tk
 from tkinter import filedialog, messagebox
 from PIL import Image, ImageTk
+import time 
 
 # Funzioni per elaborazione delle immagini e acquisizione della griglia
 def remove_table_borders(image):
@@ -367,6 +368,10 @@ class UniformColoringGUI:
             initial_state = (tuple(self.grid), start_position)
             problem = UniformColoring(initial=initial_state, goal_color=chosen_goal_color, start_position=start_position, color_costs=color_costs)
 
+            # Avvia il timer
+            start_time = time.time()
+
+            # Esegui l'algoritmo selezionato
             if self.algorithm_var.get() == "ucs":
                 path, total_cost, optimal_solution_steps = uniform_cost_search_optimized(problem, self.debug_var.get())
                 algo_name = "UCS"
@@ -374,13 +379,23 @@ class UniformColoringGUI:
                 path, total_cost, optimal_solution_steps = a_star_search_optimized(problem, improved_heuristic, self.debug_var.get())
                 algo_name = "A*"
 
+            # Ferma il timer
+            end_time = time.time()
+            elapsed_time = end_time - start_time
+
             if path:
                 if not self.debug_var.get():
-                    messagebox.showinfo("Soluzione trovata", f"{algo_name} trovato soluzione con costo: {total_cost}")
+                    messagebox.showinfo(
+                        "Soluzione trovata", 
+                        f"{algo_name} trovato soluzione con costo: {total_cost}\nTempo impiegato: {elapsed_time:.3f} secondi"
+                    )
                     self.show_solution_steps(optimal_solution_steps)
                 else:
                     num_moves = len(path)
-                    messagebox.showinfo("Soluzione trovata", f"{algo_name} trovato soluzione con costo: {total_cost} e {num_moves} mosse")
+                    messagebox.showinfo(
+                        "Soluzione trovata", 
+                        f"{algo_name} trovato soluzione con costo: {total_cost}, {num_moves} mosse\nTempo impiegato: {elapsed_time:.3f} secondi"
+                    )
                     self.show_solution_steps(optimal_solution_steps)
             else:
                 messagebox.showwarning("Nessuna soluzione", "Nessuna soluzione trovata.")
