@@ -52,11 +52,13 @@ class UniformColoring(Problem):
         grid, (x, y) = state
         rows, cols = len(grid), len(grid[0])
 
+        # Movimenti nella griglia
         if x > 0: actions.append('Up')
         if x < rows - 1: actions.append('Down')
         if y > 0: actions.append('Left')
         if y < cols - 1: actions.append('Right')
 
+        # Azione di colorazione solo se la cella non è colorata e non è la posizione iniziale
         if grid[x][y] != self.goal_color and (x, y) != self.start_position:
             actions.append('Paint')
 
@@ -64,8 +66,9 @@ class UniformColoring(Problem):
 
     def result(self, state, action):
         grid, (x, y) = state
-        new_grid = [list(row) for row in grid]
-        
+        new_grid = [list(row) for row in grid]  # Copia della griglia
+
+        # Movimenti
         if action == 'Up':
             new_position = (x - 1, y)
         elif action == 'Down':
@@ -78,18 +81,19 @@ class UniformColoring(Problem):
             new_grid[x][y] = self.goal_color
             new_position = (x, y)
 
+        # Mantiene la posizione iniziale con 'T'
         new_grid[self.start_position[0]][self.start_position[1]] = 'T'
         return (tuple("".join(row) for row in new_grid), new_position)
 
     def goal_test(self, state):
-        grid, _ = state
-        for x, row in enumerate(grid):
-            for y, cell in enumerate(row):
-                if (x, y) != self.start_position and cell != self.goal_color:
-                    return False
-        return True
+        grid, position = state
+        # Verifica che tutte le celle siano colorate e che la testina sia nella posizione iniziale
+        all_colored = all(cell == self.goal_color for row in grid for cell in row if cell != 'T')
+        is_at_start = position == self.start_position
+        return all_colored and is_at_start
 
     def path_cost(self, c, state1, action, state2):
+        # Ogni movimento e ogni pittura hanno un costo
         if action in ['Up', 'Down', 'Left', 'Right']:
             return c + 1
         elif action == 'Paint':
@@ -128,15 +132,18 @@ def calculate_total_cost(grid, color, start_position, color_costs):
 
         visited.add((x, y))
 
-        current_color = grid[x][y]
-        if current_color != color:
-            step_cost = color_costs[color]
-            total_cost += step_cost
+        # Calcola il costo solo se la cella corrente non è la testina
+        if (x, y) != start_position:
+            current_color = grid[x][y]
+            if current_color != color:
+                step_cost = color_costs[color]
+                total_cost += step_cost
 
-        for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1)]: # Movimenti possibili: su, giù, sinistra, destra
-            nx, ny = x + dx, y + dy # Nuove coordinate
-            if 0 <= nx < rows and 0 <= ny < cols and (nx, ny) not in visited: # Controlla i limiti della griglia
-                frontier.put((cost + 1, (nx, ny))) # Aggiungi il costo per il movimento
+        for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1)]:  # Movimenti possibili: su, giù, sinistra, destra
+            nx, ny = x + dx, y + dy  # Nuove coordinate
+            if 0 <= nx < rows and 0 <= ny < cols and (nx, ny) not in visited:  # Controlla i limiti della griglia
+                frontier.put((cost + 1, (nx, ny)))  # Aggiungi il costo per il movimento
+
     return total_cost
 
 def find_optimal_goal_color(grid, start_position, color_costs):
@@ -280,6 +287,13 @@ class UniformColoringGUI:
         self.upload_button = tk.Button(self.root, text="Carica Immagine", command=self.upload_image)
         self.upload_button.pack(pady=10)
 
+        self.color_costs_label = tk.Label(self.root, text="Costi dei colori: Non calcolati")
+        self.color_costs_label.pack()
+
+        self.color_choice_var = tk.StringVar()
+        self.color_choice_menu = tk.OptionMenu(self.root, self.color_choice_var, "")
+        self.color_choice_menu.pack()
+
         self.algorithm_label = tk.Label(self.root, text="Scegli l'algoritmo:")
         self.algorithm_label.pack()
 
@@ -317,8 +331,23 @@ class UniformColoringGUI:
         try:
             self.grid = process_image_to_grid(file_path)
             self.image_label.config(text="Immagine caricata correttamente")
+            self.calculate_and_display_color_costs()  # Calcola e visualizza i costi dei colori
         except ValueError as e:
             messagebox.showerror("Errore", str(e))
+
+    def calculate_and_display_color_costs(self):
+        start_position = find_starting_position(self.grid)
+        color_costs = {'B': 1, 'Y': 2, 'G': 3}  # Definisci i costi dei colori
+        costs = {color: calculate_total_cost(self.grid, color, start_position, color_costs) for color in color_costs}
+        
+        # Mostra i costi nella GUI
+        self.color_costs_label.config(text=f"Costi dei colori: {costs}")
+        
+        # Aggiorna il menu di scelta del colore obiettivo
+        menu = self.color_choice_menu["menu"]
+        menu.delete(0, "end")  # Rimuovi eventuali opzioni precedenti
+        for color in costs.keys():
+            menu.add_command(label=color, command=lambda c=color: self.color_choice_var.set(c))
 
     def run_algorithm(self):
         if not self.grid:
@@ -328,9 +357,15 @@ class UniformColoringGUI:
         try:
             start_position = find_starting_position(self.grid)
             color_costs = {'B': 1, 'Y': 2, 'G': 3}
-            optimal_goal_color = find_optimal_goal_color(self.grid, start_position, color_costs)
+            
+            # Usa il colore scelto dall'utente
+            chosen_goal_color = self.color_choice_var.get()
+            if not chosen_goal_color:
+                messagebox.showwarning("Attenzione", "Devi scegliere un colore obiettivo prima di eseguire l'algoritmo!")
+                return
+            
             initial_state = (tuple(self.grid), start_position)
-            problem = UniformColoring(initial=initial_state, goal_color=optimal_goal_color, start_position=start_position, color_costs=color_costs)
+            problem = UniformColoring(initial=initial_state, goal_color=chosen_goal_color, start_position=start_position, color_costs=color_costs)
 
             if self.algorithm_var.get() == "ucs":
                 path, total_cost, optimal_solution_steps = uniform_cost_search_optimized(problem, self.debug_var.get())
@@ -340,11 +375,10 @@ class UniformColoringGUI:
                 algo_name = "A*"
 
             if path:
-                if not self.debug_var.get():  # Verifica correttamente il valore booleano da una tk.BooleanVar
+                if not self.debug_var.get():
                     messagebox.showinfo("Soluzione trovata", f"{algo_name} trovato soluzione con costo: {total_cost}")
                     self.show_solution_steps(optimal_solution_steps)
                 else:
-                    # Conteggio delle mosse
                     num_moves = len(path)
                     messagebox.showinfo("Soluzione trovata", f"{algo_name} trovato soluzione con costo: {total_cost} e {num_moves} mosse")
                     self.show_solution_steps(optimal_solution_steps)
@@ -353,6 +387,7 @@ class UniformColoringGUI:
 
         except ValueError as e:
             messagebox.showerror("Errore", str(e))
+
 
     def show_solution_steps(self, optimal_solution_steps):
         result_window = tk.Toplevel(self.root)
